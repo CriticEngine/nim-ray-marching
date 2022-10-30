@@ -2,13 +2,14 @@ import nimgl/glfw
 import nimgl/opengl
 import glm
 import os
-import glsl
+import src/[texture, glsl]
 
 var 
   cursorX: float64 = 0f
   cursorY: float64 = 0f
   window_width: int32 = 1280
   window_height: int32 = 720 
+  scroll: GLFloat = 3f
 
 
 if os.getEnv("CI") != "":
@@ -19,6 +20,8 @@ proc keyProc(window: GLFWWindow, key: int32, scancode: int32, action: int32,
   if key == GLFWKey.Escape and action == GLFWPress:
     window.setWindowShouldClose(true)
 
+proc scrollProc(window: GLFWWindow, xoffset: float64; yoffset: float64): void {.cdecl.} =
+  scroll += yoffset/20
 
 proc getMouseDX(window: GLFWWindow): Vec2[GLFloat] =
   var
@@ -31,7 +34,7 @@ proc getMouseDX(window: GLFWWindow): Vec2[GLFloat] =
   d_cursorX = cursorX - posX
   cursorX = round(window_width/2)
   cursorY = round(window_height/2)
-  result = vec2(d_cursorX.GLFloat, d_cursorY.GLFloat)
+  result = vec2(d_cursorX.GLFloat/2, d_cursorY.GLFloat/2)
 
 proc main(): void =
   doAssert glfwInit()
@@ -46,8 +49,9 @@ proc main(): void =
 
   w.setInputMode(GLFWCursorSpecial, GLFW_CURSOR_DISABLED)
   w.getCursorPos(addr cursorX, addr cursorY)
-
+  
   discard w.setKeyCallback(keyProc)
+  discard w.setScrollCallback(scrollProc)
   w.makeContextCurrent
 
   # Opengl
@@ -100,7 +104,7 @@ proc main(): void =
   statusShader(vertex)
 
   fragment = glCreateShader(GL_FRAGMENT_SHADER)
-  var fsrc: cstring = readShader("programs/fragments.glsl")
+  var fsrc: cstring = readShader("programs/fragment.glsl")
   glShaderSource(fragment, 1, fsrc.addr, nil)
   glCompileShader(fragment)
   statusShader(fragment)
@@ -109,17 +113,48 @@ proc main(): void =
   glAttachShader(program, vertex)
   glAttachShader(program, fragment)
   glLinkProgram(program)
-
   statusProgram(program)
+
 
   let
     u_resolution = glGetUniformLocation(program, "u_resolution")
     u_time = glGetUniformLocation(program, "u_time")
     u_mouse = glGetUniformLocation(program, "u_mouse")
+    u_scroll = glGetUniformLocation(program, "u_scroll")
   var
     resolution: Vec2[GLFloat] = vec2(window_width.GLFloat, window_height.GLFloat)
     time: GLFloat = glfwGetTime()
     mouse: Vec2[GLFloat] = w.getMouseDX()
+
+
+  var texture1 = newTexture("textures/test0.png")
+  var texture2 = newTexture("textures/hex.png")  # floor 
+  var texture3 = newTexture("textures/white_marble1.png")  # walls
+  var texture4 = newTexture("textures/roof/texture3.jpg")  # roof
+  var texture5 = newTexture("textures/black_marble1.png")  # pedestal
+  var texture6 = newTexture("textures/green_marble1.png")  # sphere
+  var texture7 = newTexture("textures/roof/height3.png")  # roof bump
+
+  glUseProgram(program)
+
+  let
+    u_texture1 = glGetUniformLocation(program, "u_texture1")
+    u_texture2 = glGetUniformLocation(program, "u_texture2")
+    u_texture3 = glGetUniformLocation(program, "u_texture3")
+    u_texture4 = glGetUniformLocation(program, "u_texture4")
+    u_texture5 = glGetUniformLocation(program, "u_texture5")
+    u_texture6 = glGetUniformLocation(program, "u_texture6")
+    u_texture7 = glGetUniformLocation(program, "u_texture7")
+
+  glUniform1i(u_texture1, 1)  
+  glUniform1i(u_texture2, 2)  
+  glUniform1i(u_texture3, 3) 
+  glUniform1i(u_texture4, 4)  
+  glUniform1i(u_texture5, 5) 
+  glUniform1i(u_texture6, 6)  
+  glUniform1i(u_texture7, 7)
+
+  glUniform2fv(u_resolution, 1, resolution.caddr)
 
   while not w.windowShouldClose:
     time = glfwGetTime()
@@ -127,11 +162,20 @@ proc main(): void =
 
     glClearColor(33f/255, 33f/255, 33f/255, 1f)
     glClear(GL_COLOR_BUFFER_BIT)
+    
+    texture1.`bind`
+    texture2.`bind`
+    texture3.`bind`
+    texture4.`bind`
+    texture5.`bind`
+    texture6.`bind`
+    texture7.`bind`
 
     glUseProgram(program)
-    glUniform2fv(u_resolution, 1, resolution.caddr)
     glUniform1fv(u_time, 1, time.addr)
     glUniform2fv(u_mouse, 1, mouse.caddr)
+    glUniform1fv(u_scroll, 1, scroll.addr) 
+     
 
     glBindVertexArray(mesh.vao)
     glDrawElements(GL_TRIANGLES, ind.len.cint, GL_UNSIGNED_INT, nil)
