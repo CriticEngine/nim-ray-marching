@@ -1,5 +1,6 @@
 #version 330 core
 
+// non-native function #include
 #include vendor/hg_sdf.glsl
 
 layout (location = 0) out vec4 fragColor;
