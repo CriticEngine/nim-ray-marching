@@ -61,7 +61,7 @@ proc main(): void =
 
   # Opengl
   doAssert glInit()
-
+  echo "OpenGL " & $glVersionMajor & "." & $glVersionMinor
   # IG
   let context = igCreateContext()
   doAssert igGlfwInitForOpenGL(w, true)
