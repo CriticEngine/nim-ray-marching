@@ -1,5 +1,5 @@
-import nimgl/glfw
-import nimgl/opengl
+import nimgl/imgui, nimgl/imgui/[impl_opengl, impl_glfw]
+import nimgl/[opengl, glfw]
 import glm
 import os
 import src/[texture, glsl]
@@ -19,22 +19,25 @@ proc keyProc(window: GLFWWindow, key: int32, scancode: int32, action: int32,
     mods: int32): void {.cdecl.} =
   if key == GLFWKey.Escape and action == GLFWPress:
     window.setWindowShouldClose(true)
+  if key == GLFWKey.LeftAlt and action == GLFWPress:
+    window.setInputMode(GLFWCursorSpecial, GLFW_CURSOR_NORMAL)
+  if key == GLFWKey.LeftAlt and action == GLFWRelease:
+    window.setInputMode(GLFWCursorSpecial, GLFW_CURSOR_DISABLED)
+    window.setCursorPos(cursorX, cursorY)
 
 proc scrollProc(window: GLFWWindow, xoffset: float64; yoffset: float64): void {.cdecl.} =
   scroll += yoffset/20
 
 proc getMouseDX(window: GLFWWindow): Vec2[GLFloat] =
   var
-    posX: float64 = 0f
-    posY: float64 = 0f
     d_cursorX: float64 = 0f
     d_cursorY: float64 = 0f
-  window.getCursorPos(addr posX, addr posY)  
-  d_cursorY = cursorY - posY
-  d_cursorX = cursorX - posX
-  cursorX = round(window_width/2)
-  cursorY = round(window_height/2)
-  result = vec2(d_cursorX.GLFloat/2, d_cursorY.GLFloat/2)
+  if window.getInputMode(GLFWCursorSpecial) == GLFW_CURSOR_DISABLED:
+    window.getCursorPos(addr cursorX, addr cursorY)  
+  d_cursorX = cursorX    
+  d_cursorY = - cursorY 
+  result = vec2(d_cursorX.GLFloat, d_cursorY.GLFloat)
+
 
 proc main(): void =
   doAssert glfwInit()
@@ -54,10 +57,17 @@ proc main(): void =
   discard w.setScrollCallback(scrollProc)
   w.makeContextCurrent
 
+  echo "Vulkan supported: " & $glfwVulkanSupported()
+
   # Opengl
   doAssert glInit()
 
-  echo "OpenGL " & $glVersionMajor & "." & $glVersionMinor
+  # IG
+  let context = igCreateContext()
+  doAssert igGlfwInitForOpenGL(w, true)
+  doAssert igOpenGL3Init()
+
+  igStyleColorsCherry()
 
   var
     mesh: tuple[
@@ -115,7 +125,6 @@ proc main(): void =
   glLinkProgram(program)
   statusProgram(program)
 
-
   let
     u_resolution = glGetUniformLocation(program, "u_resolution")
     u_time = glGetUniformLocation(program, "u_time")
@@ -156,13 +165,11 @@ proc main(): void =
 
   glUniform2fv(u_resolution, 1, resolution.caddr)
 
-  while not w.windowShouldClose:
-    time = glfwGetTime()
-    mouse = w.getMouseDX()
-
-    glClearColor(33f/255, 33f/255, 33f/255, 1f)
+  glClearColor(33f/255, 33f/255, 33f/255, 1f)
+  
+  proc render(): void =    
     glClear(GL_COLOR_BUFFER_BIT)
-    
+    #
     texture1.`bind`
     texture2.`bind`
     texture3.`bind`
@@ -170,15 +177,39 @@ proc main(): void =
     texture5.`bind`
     texture6.`bind`
     texture7.`bind`
-
+    #
     glUseProgram(program)
     glUniform1fv(u_time, 1, time.addr)
     glUniform2fv(u_mouse, 1, mouse.caddr)
     glUniform1fv(u_scroll, 1, scroll.addr) 
-     
-
+    #
     glBindVertexArray(mesh.vao)
     glDrawElements(GL_TRIANGLES, ind.len.cint, GL_UNSIGNED_INT, nil)
+
+  proc imgui(): void = 
+    # Simple window
+    igBegin("DEBUG MENU")
+    igText("OpenGL version " & $glVersionMajor & "." & $glVersionMinor) 
+    igText("Time %10.3f ms ", time)
+    igText("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / igGetIO().framerate, igGetIO().framerate)
+    igEnd()
+    # End simple window
+
+  while not w.windowShouldClose:
+    time = glfwGetTime()
+    mouse = w.getMouseDX()
+
+    igOpenGL3NewFrame()
+    igGlfwNewFrame()
+    igNewFrame()
+
+    
+    render()
+    
+    imgui()
+    
+    igRender()
+    igOpenGL3RenderDrawData(igGetDrawData()) 
 
     w.swapBuffers
     glfwPollEvents()
@@ -191,4 +222,5 @@ proc main(): void =
   glDeleteBuffers(1, mesh.vbo.addr)
   glDeleteBuffers(1, mesh.ebo.addr)
 
+# START MAIN
 main()
