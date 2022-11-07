@@ -21,9 +21,11 @@ proc keyProc(window: GLFWWindow, key: int32, scancode: int32, action: int32,
     window.setWindowShouldClose(true)
   if key == GLFWKey.LeftAlt and action == GLFWPress:
     window.setInputMode(GLFWCursorSpecial, GLFW_CURSOR_NORMAL)
+    #window.setWindowAttrib(GLFWMouseButtonPassthrough, GLFW_TRUE)
   if key == GLFWKey.LeftAlt and action == GLFWRelease:
     window.setInputMode(GLFWCursorSpecial, GLFW_CURSOR_DISABLED)
     window.setCursorPos(cursorX, cursorY)
+    #window.setWindowAttrib(GLFWMouseButtonPassthrough, GLFW_FALSE)
 
 proc scrollProc(window: GLFWWindow, xoffset: float64; yoffset: float64): void {.cdecl.} =
   scroll += yoffset/20
@@ -47,18 +49,21 @@ proc main(): void =
   glfwWindowHint(GLFWOpenglForwardCompat, GLFW_TRUE)
   glfwWindowHint(GLFWOpenglProfile, GLFW_OPENGL_CORE_PROFILE)
   glfwWindowHint(GLFWResizable, GLFW_FALSE)
+  # glfwWindowHint(GLFWDecorated, GLFW_FALSE) # setWindowAttrib
+  # glfwWindowHint(GLFWFloating, GLFW_TRUE) # setWindowAttrib
+  # glfwWindowHint(GLFWMouseButtonPassthrough, GLFW_TRUE) # setWindowAttrib
 
   let w: GLFWWindow = glfwCreateWindow(window_width, window_height, "ray-marching", nil, nil)
-
-  w.setInputMode(GLFWCursorSpecial, GLFW_CURSOR_DISABLED)
-  w.getCursorPos(addr cursorX, addr cursorY)
   
+  w.setInputMode(GLFWCursorSpecial, GLFW_CURSOR_DISABLED)  
+  w.getCursorPos(addr cursorX, addr cursorY)
+
   discard w.setKeyCallback(keyProc)
   discard w.setScrollCallback(scrollProc)
   w.makeContextCurrent
 
   echo "Vulkan supported: " & $glfwVulkanSupported()
-
+  
   # Opengl
   doAssert glInit()
   echo "OpenGL " & $glVersionMajor & "." & $glVersionMinor
@@ -202,7 +207,6 @@ proc main(): void =
     igOpenGL3NewFrame()
     igGlfwNewFrame()
     igNewFrame()
-
     
     render()
     
