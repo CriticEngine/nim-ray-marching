@@ -1,4 +1,4 @@
-# ray-marching
+# nim-ray-marching
 
 original https://www.youtube.com/@CoderSpaceChannel
 
